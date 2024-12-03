@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      body {
+        cursor: crosshair;
+      }
+      canvas {
+        border: 1px solid black;
+      }
+      .circle-button {
+        width: 50px; /* Adjust the width and height as needed */
+        height: 50px;
+        background-color: black;
+        border: none;
+        border-radius: 50%; /* This makes it circular */
+        cursor: pointer;
+      }
+      .light {
+        background-color: hsl(0, 0, 90%);
+      }
+      .light-mid {
+        background-color: hsl(0, 0, 70%);
+      }
+      .midtone {
+        background-color: hsl(0, 0, 50%);
+      }
+      .mid-shadow {
+        background-color: hsl(0, 0, 30%);
+      }
+      .shadow {
+        background-color: hsl(0, 0, 10%);
+      }
+
+      #settings-popup {
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background-color: white;
+        padding: 20px;
+        border: 1px solid #ccc;
+      } 
+
+      #color-slider {
+        width: 40%;
+        -webkit-appearance: none;
+        appearance: none;
+      }
+
+      #color-slider::-webkit-slider-runnable-track {
+        background: linear-gradient(to right, hsl(0, 100%, 50%), hsl(60, 100%, 50%), hsl(120, 100%, 50%), hsl(180, 100%, 50%), hsl(240, 100%, 50%), hsl(300, 100%, 50%), hsl(360, 100%, 50%));
+        border-radius: 5px;
+      }
+
+      #color-slider::-moz-range-progress {
+        background: linear-gradient(to right, hsl(0, 100%, 50%), hsl(60, 100%, 50%), hsl(120, 100%, 50%), hsl(180, 100%, 50%), hsl(240, 100%, 50%), hsl(300, 100%, 50%), hsl(360, 100%, 50%));
+        border-radius: 5px;
+      }
+
+      #color-slider::-moz-range-thumb {
+        width: 15px;
+        height: 15px;
+        margin: 5px;
+        background: white; /* Change the color of the thumb here */
+        border: 2px solid black;
+        border-radius: 50%;
+      }
+
+      #color-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 15px;
+        height: 15px;
+        margin: 5px;
+        background: white; /* Change the color of the thumb here */
+        border: 2px solid black;
+        border-radius: 50%;
+      }
+
+    </style>
+  </head>
+  <body>
+    <canvas id="myCanvas" width="700" height="500"></canvas>
+    <br>
+    <button id="colorButton1" class="circle-button light"></button>
+    <button id="colorButton3" class="circle-button midtone"></button>
+    <button id="colorButton5" class="circle-button shadow"></button>
+    <br><br>
+    <button id="colorButton2" class="circle-button light-mid"></button>
+    <button id="colorButton4" class="circle-button mid-shadow"></button>
+    <br><br>
+    <button id="resetButton">Reset</button>
+    <button id="open-settings-button">Settings</button>
+    <input type="range" id="color-slider" min="0" max="360" value="0">
+    <p>Click "C" for elipse, "R" for rectangle, and "T" for triangle</p>
+
+    <div id="settings-popup">
+      <h2>Canvas Settings</h2>
+      <label for="width">Width:</label>
+      <input type="number" id="width" min="1">
+      <br>
+      <label for="height">Height:</label>
+      <input type="number" id="height" min="1">
+      <br>
+      <button id="apply-settings-button">Apply</button>
+      <button id="apply-default-settings-button">Default Settings</button>
+    </div>
+    <script>
+      const canvas = document.getElementById("myCanvas");
+      const context = canvas.getContext("2d");
+      const resetButton = document.getElementById("resetButton");
+      const colorButton1 = document.getElementById("colorButton1");
+      const colorButton2 = document.getElementById("colorButton2");
+      const colorButton3 = document.getElementById("colorButton3");
+      const colorButton4 = document.getElementById("colorButton4");
+      const colorButton5 = document.getElementById("colorButton5");
+
+      const openSettingsButton = document.getElementById("open-settings-button");
+      const settingsPopup = document.getElementById("settings-popup");
+      const widthInput = document.getElementById("width");
+      const heightInput = document.getElementById("height");
+      const applySettingsButton = document.getElementById("apply-settings-button");
+      const applyDefaultSettingsButton = document.getElementById("apply-default-settings-button");
+
+      const slider = document.getElementById("color-slider");
+      const colorElements = document.querySelectorAll('.circle-button');
+
+      const shapes = [];
+      let drawing = false;
+      let shapeType = "circle";
+      let startX, startY;
+      let endX, endY;
+      let ellipseMode = false;
+      let fillColor = "black"; // Default fill color
+      let newShapesFillColor = "black"; // Fill color for new shapes
+
+      
+
+      function drawShapes() {
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        for (const shape of shapes) {
+          context.lineWidth = 0; // Set the stroke width to 0 (no stroke)
+          context.fillStyle = shape.fillColor || fillColor; // Use shape's fillColor or default
+
+          if (shape.type === "circle" || (shape.type === "ellipse" && !ellipseMode)) {
+            // context.beginPath();
+            // context.ellipse(shape.x, shape.y, shape.radiusX, shape.radiusY, 0, 0, 2 * Math.PI);
+            // context.fill(); // Fill the shape
+            const centerX = shape.x;
+            const centerY = shape.y;
+
+            // Specify the horizontal and vertical radii
+            const radiusX = shape.radiusX;
+            const radiusY = shape.radiusY;
+
+            // Determine the number of points to use to approximate the ellipse
+            const numPoints = 360; // You can adjust this number for more or fewer points
+
+            // Calculate the angle increment between points
+            const angleIncrement = (2 * Math.PI) / numPoints;
+
+            context.beginPath();
+            for (let i = 0; i < numPoints; i++) {
+              const angle = i * angleIncrement;
+              const x = centerX + radiusX * Math.cos(angle);
+              const y = centerY + radiusY * Math.sin(angle);
+
+              if (i === 0) {
+                context.moveTo(x, y); // Move to the first point
+              } else {
+                context.lineTo(x, y); // Draw lines to subsequent points
+              }
+            }
+
+            context.closePath(); // Close the path to complete the ellipse
+            context.fill(); // Fill the shape
+          } else if (shape.type === "rectangle") {
+            context.beginPath();
+            context.rect(shape.x, shape.y, shape.width, shape.height);
+            context.fill(); // Fill the shape
+          } else if (shape.type === "triangle") {
+            context.beginPath();
+            context.moveTo(shape.x, shape.y);
+            context.lineTo(shape.x2, shape.y);
+            context.lineTo(shape.x + (shape.x2 - shape.x) / 2, shape.y2);
+            context.closePath();
+            context.fill(); // Fill the shape
+          }
+        }
+      }
+
+      canvas.addEventListener("mousedown", (e) => {
+        drawing = true;
+        startX = e.clientX - canvas.getBoundingClientRect().left;
+        startY = e.clientY - canvas.getBoundingClientRect().top;
+      });
+
+      canvas.addEventListener("mousemove", (e) => {
+        if (!drawing) return;
+
+        endX = e.clientX - canvas.getBoundingClientRect().left;
+        endY = e.clientY - canvas.getBoundingClientRect().top;
+        drawShapes();
+
+        if (shapeType === "circle" || (shapeType === "ellipse" && !ellipseMode)) {
+          const radiusX = Math.abs(endX - startX) / 2;
+          const radiusY = Math.abs(endY - startY) / 2;
+          context.beginPath();
+          context.ellipse(
+            startX + radiusX,
+            startY + radiusY,
+            radiusX,
+            radiusY,
+            0,
+            0,
+            2 * Math.PI
+          );
+          context.fill(); // Fill the shape
+        } else if (shapeType === "rectangle") {
+          context.beginPath();
+          context.rect(startX, startY, endX - startX, endY - startY);
+          context.fill(); // Fill the shape
+        } else if (shapeType === "triangle") {
+          context.beginPath();
+          context.moveTo(startX, startY);
+          context.lineTo(endX, startY);
+          context.lineTo(startX + (endX - startX) / 2, endY);
+          context.closePath();
+          context.fill(); // Fill the shape
+        }
+      });
+
+      canvas.addEventListener("mouseup", () => {
+        if (drawing) {
+          drawing = false;
+          if (shapeType === "circle" || (shapeType === "ellipse" && !ellipseMode)) {
+            const radiusX = Math.abs(endX - startX) / 2;
+            const radiusY = Math.abs(endY - startY) / 2;
+            shapes.push({
+              type: shapeType,
+              x: startX + radiusX,
+              y: startY + radiusY,
+              radiusX: radiusX,
+              radiusY: radiusY,
+              fillColor: newShapesFillColor, // Set fill color for the new shape
+            });
+          } else {
+            shapes.push({
+              type: shapeType,
+              x: startX,
+              y: startY,
+              x2: endX,
+              y2: endY,
+              width: endX - startX,
+              height: endY - startY,
+              fillColor: newShapesFillColor, // Set fill color for the new shape
+            });
+          }
+          drawShapes();
+        }
+      });
+
+      resetButton.addEventListener("click", () => {
+        shapes.length = 0;
+        drawShapes();
+      });
+
+      colorButton1.addEventListener("click", () => {
+        newShapesFillColor = lightHUE; // light
+      });
+
+      colorButton2.addEventListener("click", () => {
+        newShapesFillColor = midLightHUE; // light-mid
+      });
+
+      colorButton3.addEventListener("click", () => {
+        newShapesFillColor = midHUE; // mid
+      });
+
+      colorButton4.addEventListener("click", () => {
+        newShapesFillColor = midShadowHUE; // mid-dark
+      });
+
+      colorButton5.addEventListener("click", () => {
+        newShapesFillColor = shadowHUE; // dark
+      });
+
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "C" || e.key === "c") {
+          shapeType = ellipseMode ? "ellipse" : "circle";
+        } else if (e.key === "R" || e.key === "r") {
+          shapeType = "rectangle";
+        } else if (e.key === "T" || e.key === "t") {
+          shapeType = "triangle";
+        } else if (e.key === "E" || e.key === "e") {
+          ellipseMode = !ellipseMode;
+        }
+      });
+
+      openSettingsButton.addEventListener("click", () => {
+        settingsPopup.style.display = "block";
+      });
+
+      applySettingsButton.addEventListener("click", () => {
+        const newWidth = parseInt(widthInput.value, 10);
+        const newHeight = parseInt(heightInput.value, 10);
+
+        canvas.width = newWidth;
+        canvas.height = newHeight;
+        settingsPopup.style.display = "none";
+      });
+
+      applyDefaultSettingsButton.addEventListener("click", () => {
+        canvas.width = 700;
+        canvas.height = 500;
+        settingsPopup.style.display = "none";
+      });
+
+      slider.addEventListener("input", () => {
+      const hue = slider.value;
+
+      colorButton1.style.backgroundColor = `hsl(${hue}, 20%, 90%)`;
+      colorButton2.style.backgroundColor = `hsl(${hue}, 20%, 70%)`;
+      colorButton3.style.backgroundColor = `hsl(${hue}, 20%, 50%)`;
+      colorButton4.style.backgroundColor = `hsl(${hue}, 20%, 30%)`;
+      colorButton5.style.backgroundColor = `hsl(${hue}, 20%, 10%)`;
+
+      lightHUE = `hsl(${hue}, 20%, 90%)`;
+      midLightHUE = `hsl(${hue}, 20%, 70%)`;
+      midHUE = `hsl(${hue}, 20%, 50%)`;
+      midShadowHUE = `hsl(${hue}, 20%, 30%)`;
+      shadowHUE = `hsl(${hue}, 20%, 10%)`;
+    });
+    </script>
+  </body>
+</html>
